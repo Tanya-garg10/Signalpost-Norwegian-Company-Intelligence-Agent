@@ -1,0 +1,53 @@
+{
+  "run_id": "smoke-100",
+  "started_at": "2026-10-16T18:21:53.877765Z",
+  "completed_at": "2026-10-16T18:22:20.771261Z",
+  "expected_count": 100,
+  "emitted_envelopes": 100,
+  "distinct_valid_organisation_numbers": 100,
+  "verified_available_profiles": 100,
+  "terminal_status_counts": {
+    "completed": 100,
+    "blocked": 0,
+    "ambiguous": 0,
+    "failed": 0
+  },
+  "complete": true,
+  "validation": {
+    "passed": true,
+    "expected_envelopes": 100,
+    "actual_envelopes": 100,
+    "errors": []
+  },
+  "output_jsonl": "out\\smoke-100.jsonl",
+  "output_sha256": "a28162886ddcb5d3d605342ee158a5cb9961ac867a970b39c06a99f360a22c5b",
+  "operations": {
+    "requests": 100,
+    "runtime_ms": 27068,
+    "company_runtime_ms_sum": 99635,
+    "third_party_cost_usd": 0,
+    "discovery_requests": 0,
+    "p50_ms": 1054,
+    "p95_ms": 1217
+  },
+  "claim_availability_counts": {
+    "available": 1168,
+    "not_available": 532,
+    "blocked": 0,
+    "not_applicable": 0,
+    "ambiguous": 0,
+    "failed": 0
+  },
+  "sources": [
+    "https://data.brreg.no/enhetsregisteret/api/enheter/{organisation_number}"
+  ],
+  "discovery": {
+    "requested_count": 100,
+    "universe_archive_sha256": "1c89710e5b01f8617e86d09fbdff4a52f2f8dbbba297e74f7164b5984f5a0384",
+    "universe_source": "https://builderr.ai/signalpost-company-universe-2025.jsonl.gz",
+    "registry_list_source": null,
+    "registry_list_pages": [],
+    "organisation_number_sha256": "d2d5aac45d7b74f8e344e544d873098d8bd3f4818ef49bc0c8297836d5f08e75",
+    "seed": 20260823
+  }
+}
