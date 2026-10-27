@@ -6,6 +6,7 @@ import gzip
 import hashlib
 import json
 import random
+import re
 import sys
 import unittest
 from datetime import datetime, timezone
@@ -53,6 +54,25 @@ def now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+COMMON_HEADERS = {
+    "organisation_number",
+    "organisation_numbers",
+    "organization_number",
+    "organization_numbers",
+    "org_number",
+    "org_numbers",
+    "organisasjonsnummer",
+    "company_number",
+    "company_numbers",
+    "company",
+    "companies",
+    "organisations",
+    "input",
+    "org",
+    "id",
+}
+
+
 def _number_from_row(row: Any) -> str:
     if isinstance(row, dict):
         for key in (
@@ -61,50 +81,97 @@ def _number_from_row(row: Any) -> str:
             "organization_number",
             "organisasjonsnummer",
             "company_number",
+            "org",
+            "id",
         ):
             if row.get(key):
-                return str(row[key])
+                return str(row[key]).strip()
         return ""
     if isinstance(row, (str, int)):
-        return str(row)
+        text = str(row).strip()
+        if text.casefold() in COMMON_HEADERS:
+            return ""
+        match = re.search(r"\b(\d{9})\b", text)
+        if match:
+            return match.group(1)
+        compact = re.sub(r"\s+", "", text)
+        if re.fullmatch(r"\d{9}", compact):
+            return compact
+        if not any(char.isdigit() for char in text):
+            return ""
+        return text
     return ""
 
 
 def _read_json_lines(handle: TextIO) -> list[str]:
     numbers = []
     for line_number, line in enumerate(handle, 1):
-        if not line.strip():
+        line = line.strip()
+        if not line or line.startswith("#"):
             continue
         try:
             numbers.append(_number_from_row(json.loads(line)))
         except json.JSONDecodeError as error:
-            raise ValueError(f"Invalid JSONL on line {line_number}: {error.msg}") from error
+            # Fallback to plain line text
+            num = _number_from_row(line)
+            if num:
+                numbers.append(num)
+            else:
+                raise ValueError(f"Invalid JSONL on line {line_number}: {error.msg}") from error
     return numbers
 
 
 def parse(path: Path) -> list[str]:
+    if not path.exists():
+        raise ValueError(f"Input file does not exist: {path}")
+
     if path.suffix.lower() == ".gz":
         with gzip.open(path, "rt", encoding="utf-8") as handle:
             return _read_json_lines(handle)
-    if path.suffix.lower() == ".jsonl":
-        with path.open("r", encoding="utf-8") as handle:
-            return _read_json_lines(handle)
 
-    raw = json.loads(path.read_text(encoding="utf-8"))
-    if isinstance(raw, dict):
-        values = (
-            raw.get("company_numbers")
-            or raw.get("org_numbers")
-            or raw.get("companies")
-            or raw.get("input")
-        )
-    else:
-        values = raw
-    if not isinstance(values, list):
-        raise ValueError(
-            "Input must be a JSON array/object or a JSONL file with organisation numbers."
-        )
-    return [_number_from_row(item) for item in values]
+    content = path.read_text(encoding="utf-8")
+
+    # If file is explicitly .json, try JSON decode first
+    if path.suffix.lower() == ".json":
+        try:
+            raw = json.loads(content)
+            if isinstance(raw, dict):
+                values = (
+                    raw.get("organisation_numbers")
+                    or raw.get("company_numbers")
+                    or raw.get("org_numbers")
+                    or raw.get("companies")
+                    or raw.get("organisations")
+                    or raw.get("input")
+                    or []
+                )
+            elif isinstance(raw, list):
+                values = raw
+            else:
+                values = []
+            return [_number_from_row(item) for item in values if _number_from_row(item)]
+        except json.JSONDecodeError:
+            pass
+
+    # Read line-by-line: supports .jsonl, .txt, .csv, and unstructured text
+    numbers: list[str] = []
+    for line in content.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("{") and line.endswith("}"):
+            try:
+                item = json.loads(line)
+                num = _number_from_row(item)
+                if num:
+                    numbers.append(num)
+                continue
+            except json.JSONDecodeError:
+                pass
+        num = _number_from_row(line)
+        if num:
+            numbers.append(num)
+    return numbers
 
 
 def select_universe(path: Path, count: int, seed: int) -> tuple[list[str], str]:
@@ -316,9 +383,10 @@ async def main_async(args: argparse.Namespace) -> int:
     discovery_requests = 0
     universe_sha256: str | None = None
     demo = args.demo or args.test_and_demo
+    input_file = getattr(args, "named_input", None) or args.input
 
     if args.discover is not None:
-        if args.input is not None or demo:
+        if input_file is not None or demo:
             raise ValueError("--discover cannot be combined with an input file or demo.")
         if args.universe:
             numbers, universe_sha256 = select_universe(
@@ -338,14 +406,14 @@ async def main_async(args: argparse.Namespace) -> int:
     elif args.universe:
         raise ValueError("--universe requires --discover N.")
     elif demo:
-        if args.input is not None:
+        if input_file is not None:
             raise ValueError("--demo cannot be combined with an input file.")
         numbers = [DEMO_NUMBER]
         results = await run(numbers, refresh=True)
     else:
-        if args.input is None:
-            raise ValueError("Provide an input JSON/JSONL file, --discover N, or --demo.")
-        numbers = parse(args.input)
+        if input_file is None:
+            raise ValueError("Provide an input file of organisation numbers, --discover N, or --demo.")
+        numbers = parse(input_file)
         if not numbers:
             raise ValueError("The input batch must contain at least one company number.")
         results = await run(numbers, refresh=args.refresh)
@@ -475,8 +543,29 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Research Norwegian companies and emit Signalpost terminal JSONL envelopes."
     )
-    parser.add_argument("input", type=Path, nargs="?", help="JSON, JSONL, or gzip JSONL input")
-    parser.add_argument("--out", type=Path, default=Path("out/signalpost-envelopes.jsonl"))
+    parser.add_argument(
+        "input",
+        type=Path,
+        nargs="?",
+        help="Input file of organisation numbers (.txt, .jsonl, .json, .csv, or .gz)",
+    )
+    parser.add_argument(
+        "--input",
+        "-i",
+        "--organisations",
+        dest="named_input",
+        type=Path,
+        help="Alternative flag for input file",
+    )
+    parser.add_argument(
+        "--out",
+        "--output",
+        "-o",
+        dest="out",
+        type=Path,
+        default=Path("out/signalpost-envelopes.jsonl"),
+        help="Output JSONL path for terminal envelopes",
+    )
     parser.add_argument("--report", type=Path, help="machine-readable run report JSON")
     parser.add_argument("--run-id", help="reproducible run identifier")
     parser.add_argument(

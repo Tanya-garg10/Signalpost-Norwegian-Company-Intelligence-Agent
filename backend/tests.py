@@ -106,6 +106,19 @@ class ResearchTests(unittest.TestCase):
         )
         self.assertEqual(parse(input_path), [ORG, "923609016"])
 
+    def test_cli_reads_plain_text_and_csv_batches(self) -> None:
+        txt_path = Path(self.temp_dir.name) / "companies.txt"
+        txt_path.write_text(f"{ORG}\n923609016\n", encoding="utf-8")
+        self.assertEqual(parse(txt_path), [ORG, "923609016"])
+
+        csv_path = Path(self.temp_dir.name) / "companies.csv"
+        csv_path.write_text(f"organisation_number\n{ORG}\n923609016\n", encoding="utf-8")
+        self.assertEqual(parse(csv_path), [ORG, "923609016"])
+
+        json_path = Path(self.temp_dir.name) / "companies.json"
+        json_path.write_text(json.dumps([ORG, "923609016"]), encoding="utf-8")
+        self.assertEqual(parse(json_path), [ORG, "923609016"])
+
     def test_invalid_number_does_not_make_api_request(self) -> None:
         requests = []
 

@@ -1,4 +1,4 @@
-# Python
+﻿# Python
 backend/.venv/
 __pycache__/
 *.py[cod]
@@ -17,6 +17,13 @@ data/
 .env
 .env.*
 !.env.example
+
+# Datasets and large dumps (>100MB)
+financial-filer-master-2025.jsonl
+*.jsonl.gz
+
+# Starter kit archive folder
+starter-kit/
 
 # Editor and operating system
 .vscode/
