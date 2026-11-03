@@ -33,6 +33,7 @@ FACT_FIELDS = (
     "registration_date",
     "foundation_date",
     "business_register_date",
+    "vat_registered",
     "vat_register_date",
     "employee_count_date",
     "business_address",
@@ -276,6 +277,7 @@ def _source_dates(data: dict[str, Any]) -> dict[str, str | None]:
         "registration_date": data.get("registreringsdatoEnhetsregisteret"),
         "foundation_date": data.get("stiftelsesdato"),
         "business_register_date": data.get("registreringsdatoIForetaksregisteret"),
+        "vat_registered": data.get("registrertIMvaregisteret"),
         "vat_register_date": data.get("registreringsdatoIMvaregisteret"),
         "employee_count_date": (
             data.get("registreringsdatoAntallAnsatteEnhetsregisteret")
@@ -360,6 +362,10 @@ def from_data(
             "registreringsdatoIForetaksregisteret",
             source_dates["business_register_date"],
         ),
+        "vat_registered": (
+            "registrertIMvaregisteret",
+            source_dates["vat_registered"],
+        ),
         "vat_register_date": (
             "registreringsdatoIMvaregisteret",
             source_dates["vat_register_date"],
@@ -402,19 +408,27 @@ def from_data(
         for key, value in values.items()
     }
     # Keep identity evidence explicit, even when no other company attributes exist.
-    summary_bits = [str(data.get("navn") or "The company")]
-    organization_form = values["organization_form"]
+    name = str(data.get("navn") or "The company")
+    description = values["description"]
     industry = values["industry_description"]
-    if organization_form:
-        summary_bits.append(f"is registered as {organization_form}")
-    if industry:
-        summary_bits.append(f"and is classified in {industry}")
+    summary_parts = []
+    # First sentence: what the company does
+    if description:
+        if isinstance(description, list):
+            desc_text = " ".join(str(d) for d in description)
+        else:
+            desc_text = str(description)
+        summary_parts.append(f"{name} {desc_text}")
+    else:
+        summary_parts.append(f"{name} operates in {industry}" if industry else f"{name} is a registered entity")
+    # Second sentence: year-over-year comparison placeholder
+    # Financial data is not currently fetched in the main registry flow
+    summary_parts.append("Year-over-year financial comparison is not available without annual accounts data.")
     return {
         "org_number": org,
         "status": "available",
         **claims,
-        "summary": " ".join(summary_bits)
-        + ". Other details are shown only when present in the official registry record.",
+        "summary": " ".join(summary_parts),
         "source_url": url,
         "retrieved_at": retrieved_at,
         "source_snapshots": [],

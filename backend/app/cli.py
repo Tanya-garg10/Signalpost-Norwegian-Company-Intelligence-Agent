@@ -38,6 +38,7 @@ CLAIM_FIELDS = (
     ("registration_date", "registration_date"),
     ("foundation_date", "foundation_date"),
     ("business_register_date", "business_register_date"),
+    ("vat_registered", "vat_registered"),
     ("vat_register_date", "vat_register_date"),
     ("employee_count_date", "employee_count_date"),
     ("business_address", "business_address"),
@@ -290,6 +291,7 @@ def terminal_envelope(
         },
         "claims": claims,
         "evidence": evidence,
+        "summary": profile.get("summary", ""),
         "changes": profile.get("changes", []),
         "errors": profile.get("errors", []),
         "operations": profile.get(
