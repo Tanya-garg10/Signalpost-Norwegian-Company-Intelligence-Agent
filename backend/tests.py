@@ -158,7 +158,9 @@ class ResearchTests(unittest.TestCase):
             {**SAMPLE, "navn": "Example Group AS"},
         ]
 
-        async def handler(_: httpx.Request) -> httpx.Response:
+        async def handler(request: httpx.Request) -> httpx.Response:
+            if "regnskap" in str(request.url):
+                return httpx.Response(200, json=[])
             return httpx.Response(200, json=records.pop(0))
 
         async def run() -> list[dict]:
@@ -193,7 +195,9 @@ class ResearchTests(unittest.TestCase):
             httpx.Response(410),
         ]
 
-        async def handler(_: httpx.Request) -> httpx.Response:
+        async def handler(request: httpx.Request) -> httpx.Response:
+            if "regnskap" in str(request.url):
+                return httpx.Response(200, json=[])
             return responses.pop(0)
 
         async def run() -> dict:

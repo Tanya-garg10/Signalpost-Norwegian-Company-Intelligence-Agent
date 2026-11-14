@@ -125,6 +125,8 @@ Keep `out\companies-1000.jsonl` and the downloaded universe local. The official 
 ## Official sources, model, and cost
 
 - Primary source: [Brønnøysund Register Centre Enhetsregisteret API](https://data.brreg.no/enhetsregisteret/api/enheter/{organisation_number}).
+- Annual accounts: [Brønnøysund Register Centre Regnskapsregisteret API](https://data.brreg.no/regnskapsregisteret/regnskap/{organisation_number}) for latest normalized filing fields.
+- Company website: the registry-listed `hjemmeside`, fetched once per run (homepage plus up to four same-site news/career pages, 1.5 MB and 10-second limits per page). Only exact-entity-verified pages produce claims.
 - Local eligible-company sampling archive and checksum: [Signalpost public universe](https://builderr.ai/signalpost-company-universe-2025.jsonl.gz), published with the [challenge contract](https://builderr.ai/docs/signalpost-evaluation-harness.md).
 - Data extraction is deterministic. **Model: none.** No API key or third-party model provider is used.
 - Third-party inference/search cost: **$0**. Public registry requests have no per-request fee stated in this project; obey the current source terms and any evaluator outbound-request budget. Hosting, if added, may incur a separate cost.
@@ -132,7 +134,8 @@ Keep `out\companies-1000.jsonl` and the downloaded universe local. The official 
 
 ## Limitations and integrity
 
-- This is a registry profile, not a complete company-intelligence crawler. It does not fetch annual accounts, roles, group structure, jobs, reviews, news, or company websites.
+- This is a registry-plus-public-web profile, not a complete company-intelligence crawler. Beyond the Enhetsregisteret entity record it fetches latest annual-account figures from the official Regnskapsregisteret and runs a bounded crawl (homepage plus up to four news/career pages) of the registry-linked company website. It does not fetch roles, group structure, reviews, or independent news/social sources.
+- Website-derived claims (title, description, social profiles, dated news items, job postings) are only published when the fetched page proves exact-entity identity by showing the registered company name or organisation number; otherwise they are reported as `ambiguous` rather than risk a wrong-company claim.
 - An absent source field remains `not_available`; source dates are only populated when the registry actually supplies a relevant date. Registry registration is not a guarantee of current trading activity.
 - A 404, 429, network error, or source outage remains a distinct terminal outcome. The API does not silently turn failures into empty successful profiles.
 - The challenge's exact frozen evaluator batch, resource budget, and any later private adapter are Builderr-controlled. Local API discoveries and cached profiles are not claimed as coverage of that batch.

@@ -48,6 +48,18 @@ CLAIM_FIELDS = (
     ("official_website", "website"),
     ("employees", "employees"),
     ("purpose_or_activity", "description"),
+    ("website_title", "website_title"),
+    ("website_description", "website_description"),
+    ("social_profiles", "social_profiles"),
+    ("company_news", "company_news"),
+    ("job_postings", "job_postings"),
+    ("latest_reporting_period", "latest_reporting_period"),
+    ("latest_annual_revenue", "latest_annual_revenue"),
+    ("latest_operating_result", "latest_operating_result"),
+    ("latest_annual_result", "latest_annual_result"),
+    ("latest_total_assets", "latest_total_assets"),
+    ("latest_equity", "latest_equity"),
+    ("latest_debt", "latest_debt"),
 )
 
 
@@ -437,10 +449,6 @@ async def main_async(args: argparse.Namespace) -> int:
     normalized = [normalize_org_number(number) for number in numbers]
     available_count = sum(
         envelope["run"]["terminal_status"] == "completed"
-        and all(
-            claim["availability"] in ("available", "not_available")
-            for claim in envelope["claims"]
-        )
         and any(claim["availability"] == "available" for claim in envelope["claims"])
         for envelope in envelopes
     )

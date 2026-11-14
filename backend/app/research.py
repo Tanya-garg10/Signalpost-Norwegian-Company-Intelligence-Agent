@@ -177,13 +177,16 @@ def evidence(
     source_date: str | None,
     content_sha256: str,
     claim_span: str,
+    *,
+    source: str = SOURCE,
+    source_class: str = "official_registry",
 ) -> list[dict[str, Any]]:
     return [
         {
             "id": "",
-            "source": SOURCE,
+            "source": source,
             "url": url,
-            "source_class": "official_registry",
+            "source_class": source_class,
             "retrieved_at": retrieved_at,
             "source_date": source_date,
             "content_sha256": content_sha256,
@@ -200,6 +203,9 @@ def fact(
     content_sha256: str = "",
     claim_span: str = "",
     unavailable_status: str = "not_available",
+    *,
+    source: str = SOURCE,
+    source_class: str = "official_registry",
 ) -> dict[str, Any]:
     available = value is not None and value != "" and value != []
     return {
@@ -207,7 +213,15 @@ def fact(
         "status": "available" if available else unavailable_status,
         "source_date": source_date,
         "evidence": (
-            evidence(url, retrieved_at, source_date, content_sha256, claim_span)
+            evidence(
+                url,
+                retrieved_at,
+                source_date,
+                content_sha256,
+                claim_span,
+                source=source,
+                source_class=source_class,
+            )
             if available
             else []
         ),
@@ -619,6 +633,11 @@ async def research(
                     content_sha256 = hashlib.sha256(response.content).hexdigest()
                     result = from_data(org, data, retrieved_at, content_sha256)
                     if result["status"] == "available":
+                        from . import enrichment
+
+                        await enrichment.enrich_profile(
+                            result, client, limiter, request_counter
+                        )
                         store(result, content_sha256)
     except httpx.TimeoutException:
         result = empty_profile(org, "failed", now(), "Registry request timed out after retries.")
